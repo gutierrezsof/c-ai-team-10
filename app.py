@@ -9,15 +9,39 @@ app = dash.Dash(
 
 app.title = "Career Explorer"
 
+
+# ---------------------------------------------------------
+# NAVIGATION LINKS
+# Define these manually so the navbar always appears
+# in the exact order you want.
+# ---------------------------------------------------------
 nav_links = [
     dcc.Link(
-        page["name"],
-        href=page["path"],
+        "Career Landscape",
+        href="/page1",
         className="nav-link",
-    )
-    for page in dash.page_registry.values()
+    ),
+    dcc.Link(
+        "Career Match",
+        href="/ranking",
+        className="nav-link",
+    ),
+    dcc.Link(
+        "Compare Careers",
+        href="/compare-careers",
+        className="nav-link",
+    ),
+    dcc.Link(
+        "Explore Career + Location",
+        href="/explore",
+        className="nav-link",
+    ),
 ]
 
+
+# ---------------------------------------------------------
+# APP LAYOUT
+# ---------------------------------------------------------
 app.layout = html.Div(
     [
         html.Header(
@@ -26,11 +50,15 @@ app.layout = html.Div(
                 html.Div(
                     className="nav-shell",
                     children=[
+
+                        # Logo / Home button
                         dcc.Link(
                             "Career Compass",
                             href="/",
                             className="brand-link",
                         ),
+
+                        # Main navigation
                         html.Nav(
                             className="nav-bar",
                             children=nav_links,
@@ -39,6 +67,8 @@ app.layout = html.Div(
                 )
             ],
         ),
+
+        # Current Dash page appears here
         html.Main(
             className="app-main",
             children=dash.page_container,
@@ -46,6 +76,7 @@ app.layout = html.Div(
     ],
     className="app-shell",
 )
+
 
 if __name__ == "__main__":
     app.run(debug=True)

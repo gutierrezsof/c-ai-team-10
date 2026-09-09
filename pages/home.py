@@ -1,17 +1,12 @@
 """
 pages/home.py — Career Compass landing page
 
-The narrative spine of the dashboard. It frames the four analysis pages as a
-four-stop route:
+The landing page frames the four analysis pages as a simple four-step career exploration flow:
 
     01 Career Landscape        -> get oriented    (the whole market)
     02 Career Match            -> make it personal (rank by what you value)
     03 Compare Careers         -> narrow it down  (a short list, head to head)
     04 Explore Career+Location -> zoom in         (one career, in depth)
-
-Written in the second person ("your route"), with "Sammie" — a college senior
-deciding what to do next — as a worked example at every stop, so the page tells
-a story without pretending the visitor is Sammie.
 
 Theme: compass / wayfinding. Reuses the shared design system in
 assets/styles.css (.kpi-row / .kpi-card, .source-note) and adds the .home-*
@@ -25,7 +20,6 @@ import dash
 from dash import html, dcc
 import pandas as pd
 
-from journey import wanderer
 
 dash.register_page(
     __name__,
@@ -73,7 +67,7 @@ STATS = {
 
 
 # ---------------------------------------------------------------------------
-# The route — one dict per stop, rendered into linked cards below
+# The four career exploration steps — one dict per page, rendered into linked cards below
 # ---------------------------------------------------------------------------
 STOPS = [
     {
@@ -193,8 +187,6 @@ layout = html.Div(
     className="home",
     children=[
 
-        wanderer("home"),
-
         # ---- Hero -------------------------------------------------------
         html.Div(
             className="home-hero",
@@ -205,12 +197,12 @@ layout = html.Div(
                         html.H1("Find your dream career!"),
                         html.P(
                             f"{STATS['careers']:,} U.S. occupations, charted by "
-                            "pay, projected growth, and hiring demand. Follow the "
-                            "four stops below — from the whole map down to the "
-                            "one role that matches what you value."
+                            "pay, projected growth, and hiring demand. Use the four tools below "
+                            "to explore the market, compare options, and focus on the "
+                            "roles that match what you value."
                         ),
                         dcc.Link(
-                            "Start at stop one →",
+                            "Start exploring →",
                             href="/page1",
                             className="home-cta",
                         ),
@@ -221,11 +213,6 @@ layout = html.Div(
                     **{"aria-hidden": "true"},
                     children=[
                         html.Div(className="home-compass"),
-                        html.Img(
-                            src="/assets/sammie.svg",
-                            alt="",
-                            className="home-hero-sammie",
-                        ),
                     ],
                 ),
             ],
@@ -271,10 +258,10 @@ layout = html.Div(
             ],
         ),
 
-        # ---- The route ------------------------------------------------------
-        html.Div("The route", className="home-section-title"),
+        # ---- Career exploration steps --------------------------------------
+        html.Div("Explore the career tools", className="home-section-title"),
         html.Div(
-            "Four stops, each answering the next question you'd actually ask.",
+            "Four tools, each helping you answer a different career question.",
             className="home-section-sub",
         ),
         html.Div(
