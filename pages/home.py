@@ -1,20 +1,18 @@
-"""
-pages/home.py — Career Compass landing page
+######################################## AI USE DISCLOSURE ##############################################
 
-The landing page frames the four analysis pages as a simple four-step
-career exploration flow:
+# AI Models Used: ChatGPT and Claude
+#
+# ChatGPT and Claude were used to help generate and debug the following components
+# when creating the app.py file:
+#
+#   - Home page skeleton
+#   - Navigation bar, including links to the different pages
+#   - Home page layout and design elements
+#
+# Team members reviewed, tested, and made edits/revisions to all code before
+# including it in the app.
 
-    01 Career Landscape        -> get oriented (the whole market)
-    02 Career Match            -> make it personal (rank by what you value)
-    03 Compare Careers         -> narrow it down (a short list, head to head)
-    04 Explore Career+Location -> zoom in (one career, in depth)
-
-Theme: compass / wayfinding. Reuses the shared design system in
-assets/styles.css (.kpi-row / .kpi-card, .source-note) and adds the .home-*
-classes at the end of that file.
-
-Data: national_careers.csv, read once at import for the "at a glance" strip.
-"""
+########################################################################################################
 
 import os
 import dash
