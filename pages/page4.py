@@ -101,7 +101,7 @@ layout = html.Div(
                         dcc.Dropdown(
                             id="occupation-group-dropdown",
                             options=group_options,
-                            value="Business and Financial",  # Sammie's field
+                            value="Computer and Mathematical",  # Sammie's field
                             clearable=False,
                             className="dropdown",
                         ),
