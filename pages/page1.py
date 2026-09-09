@@ -1,3 +1,36 @@
+########################################   AI USE DISCLOSURE ##############################################
+
+# AI Model Used: Claude 
+#
+#
+# Design & feature decisions (made by team member, not AI):
+#   - Big picture ideas and design
+#   - Choice to include two dropdown filters for plot (state and occupation group)
+#   - Decision to show a national-vs-state note explaining that growth/openings
+#     figures are always national (no state-level projections exist)
+#   - Choice of KPIs shown (median wage, median growth, total openings, total employment)
+#   - Choice to bin annual openings into buckets and color the scatter by bucket,
+#     and to add median reference lines to the chart
+#
+# Used Claude to help generate/debug the following when creating page 1:
+#   - Overall page skeleton/layout structure (controls row, chart card, and KPI row)
+#   - The merge of state_careers.csv and national_careers.csv on occ_code to
+#     attach growth_pct/annual_openings/occupation_group onto state-level rows
+#   - The update_page() callback logic for switching between the national
+#     dataframe and the state-filtered merged dataframe (different wage/title
+#     columns depending on selected_state)
+#   - The pd.cut() bin setup for annual_openings and the OPENING_COLORS map
+#   - The empty-selection guard (dff.empty check) returning a "No data" message
+#     instead of erroring
+#   - Plotly Express scatter code, including add_hline/add_vline for the median
+#     reference lines and layout/title styling
+#   - Troubleshooting (including error messages)
+#   - If/Else Statement Adjustments
+#
+# Team member reviewed, tested, and made edits/revisions to all code before including it in the app
+
+###########################################################################################################
+
 ##Imports
 import dash
 from dash import html, dcc, callback, Input, Output
@@ -8,35 +41,32 @@ import pandas as pd
 print("Loading page1_career_landscape.py...")
 
 
-dash.register_page(__name__, path="/page1", name="Career Landscape", order=1)
+dash.register_page(__name__, path="/page1", name="Career Landscape")
 
 
 print("Page registered successfully")
 
-# --- Load both datasets ------------------------------------------------------
+# Load national and state datasets
 nat_df = pd.read_csv("data/national_careers.csv")
 state_df = pd.read_csv("data/state_careers.csv")
 
 # Strip whitespaces from national file so the titles match cleanly everywhere
 nat_df["national_occ_title"] = nat_df["national_occ_title"].str.strip()
 
-# --- We merged the two datasets to attach growth_pct and annual_openings onto the state rows -------
-# occ_code is the shared key. This is a LEFT join on state_df so every state
-# row is kept even if national_careers.csv is ever missing that code; growth
-# and openings just come back NaN for those few rows instead of dropping them.
+# We merged the two datasets to attach growth_pct and annual_openings onto the state rows. occ_code is the shared key.
 merged_df = state_df.merge(
     nat_df[["occ_code", "growth_pct", "annual_openings", "occupation_group"]],
     on="occ_code",
     how="left",
 )
-#print(merged_df.shape)
 
-# --- Dropdown 1 options: occupation group  -----------
+
+#Dropdown 1 options: occupation group
 group_options = [{"label": "All Occupations", "value": "ALL"}] + [
     {"label": g, "value": g} for g in sorted(nat_df["occupation_group"].dropna().unique())
 ]
 
-# --- Dropdown 2 options: By individual state -----------------------------------------------
+#Dropdown 2 options: Select a state 
 state_lookup = state_df[["state", "state_name"]].drop_duplicates().sort_values("state_name")
 state_options = [{"label": "National (All States)", "value": "NATIONAL"}] + [
     {"label": row["state_name"], "value": row["state"]}
@@ -54,6 +84,7 @@ OPENING_COLORS = {
     "50,000+": "#b2182b",
 }
 
+##layout (html.Div container, Title, Subtitle, Dropdowns)
 layout = html.Div(className="page-container", children=[
 
     html.Div(className="page-title", children="Career Opportunity Explorer"),
@@ -70,7 +101,7 @@ layout = html.Div(className="page-container", children=[
         dcc.Dropdown(
             id="group-filter",
             options=group_options,
-            value="Business and Financial",   # Sammie's field (home-page example)
+            value="Computer and Mathematical",
             clearable=False,
             className="dropdown",
         ),
@@ -81,7 +112,7 @@ layout = html.Div(className="page-container", children=[
         dcc.Dropdown(
             id="state-filter",
             options=state_options,
-            value="VA",   # Sammie's home state (home-page example)
+            value="VA",
             clearable=False,
             className="dropdown",
         ),
@@ -89,7 +120,7 @@ layout = html.Div(className="page-container", children=[
 
 ]),
 
-    # Chart comes first, KPIs moved below it
+    # Creates boxes for chart and our KPI Values beneath the chart
     html.Div(className="chart-card", children=[
         dcc.Graph(id="wage-growth-scatter"),
         html.Div(
@@ -100,8 +131,7 @@ layout = html.Div(className="page-container", children=[
 
     html.Div(id="kpi-row", className="kpi-row"),
 
-    # NEW: shows a short note when a state is selected, since growth and
-    # openings numbers on that view are still national, not state-specific.
+    # Original Bureau of Labor Statistics source inside html.A
     html.Div(id="state-note", className="source-note"),
 
     html.Div(className="source-note", children=[
@@ -114,19 +144,19 @@ layout = html.Div(className="page-container", children=[
     ]),
 ])
 
-
+#callback for scatter and kpi outputs
 @callback(
     Output("kpi-row", "children"),
     Output("wage-growth-scatter", "figure"),
     Output("state-note", "children"),
     Input("group-filter", "value"),
-    Input("state-filter", "value"),   # NEW second input -- order must match
-)                                     # the function arguments below
+    Input("state-filter", "value"),  
+)                                     
 def update_page(selected_group, selected_state):
 
-    # --- Pick which dataset to work from -------------------------------------
+    #Selecting a dataset
     if selected_state == "NATIONAL":
-        # Original behavior: national file, national wage column, no note.
+        #National file, National wage column, no note.
         dff = nat_df.copy()
         wage_col = "national_median_wage"
         title_col = "national_occ_title"
@@ -136,25 +166,23 @@ def update_page(selected_group, selected_state):
         dff = merged_df[merged_df["state"] == selected_state].copy()
         wage_col = "state_median_wage"
         title_col = "occ_title"
-        state_name = state_lookup.loc[state_lookup["state"] == selected_state, "state_name"].iloc[0]
+        lookup_result = state_lookup.loc[state_lookup["state"] == selected_state, "state_name"]
+        state_name = lookup_result.iloc[0] if not lookup_result.empty else selected_state
         note = (f"Wage and employment are for {state_name}. Growth and annual "
                 f"openings are national figures -- state-level projections "
                 f"are not published.")
 
-    # --- Occupation group filter (applies on top of the state choice) -------
+    # Filtering by occupation group (applies on top of the state choice) -------
     if selected_group != "ALL":
         dff = dff[dff["occupation_group"] == selected_group]
 
-    # --- Guard: the combination above produced zero rows ---------------------
-    # Can happen with a real but rare combination -- e.g. a group whose wages
-    # are entirely suppressed in a small state. Show a message instead of
-    # crashing on an empty DataFrame.
+    # Show error message in case combination of selections does not feature any observations
     dff = dff.dropna(subset=[wage_col, "growth_pct", "annual_openings"])
     if dff.empty:
         empty_kpis = [html.Div("No data available for this selection.", className="kpi-label")]
         return empty_kpis, px.scatter(title="No data for this selection"), note
 
-    # --- Bin annual openings for the color-coded legend ---------------------
+    # Establishes bins for different ranges of annual openings
     dff["openings_bin"] = pd.cut(
         dff["annual_openings"],
         bins=OPENING_BINS,
@@ -162,14 +190,14 @@ def update_page(selected_group, selected_state):
         include_lowest=True,
     )
 
-    # --- Build a dynamic chart title from the two filters --------------------
+    # Adjust the scatter plot title based the two dropdown filters 
     group_label = "All Occupations" if selected_group == "ALL" else selected_group
     if selected_state == "NATIONAL":
         chart_title = f"Median Wage vs. Projected Growth for {group_label} Jobs (National)"
     else:
         chart_title = f"Median Wage vs. Projected Growth for {group_label} Jobs in {state_name}"
 
-    # --- KPIs ------------------------------------------------------------
+    # KPIs (Median Annual Wage, Total Job Openings, Total Annual Job Openings, Total Employment 2025)
     kpis = [
         html.Div(className="kpi-card", children=[
             html.Div("Median Annual Wage", className="kpi-label"),
@@ -193,7 +221,7 @@ def update_page(selected_group, selected_state):
         ]),
     ]
 
-    # --- Scatterplot Graphic -----------------------------------------------------------
+    # Page 1 Scatterplot Graphic
     fig = px.scatter(
         dff,
         x="growth_pct",
@@ -211,7 +239,7 @@ def update_page(selected_group, selected_state):
         },
         title=chart_title,
     )
-
+# Add horizontal line for Median Annual Wage and vertical line for Projected Employment Growth Percentage
     fig.add_hline(y=dff[wage_col].median(), line_dash="dot", opacity=0.4,
                   annotation_text=f"Median: ${dff[wage_col].median():,.0f}", annotation_position="top left")
     fig.add_vline(x=dff["growth_pct"].median(), line_dash="solid", opacity=0.4,
