@@ -1,3 +1,16 @@
+######################################## AI USE DISCLOSURE ##############################################
+
+# AI Model Used: ChatGPT and Claude
+#
+# Used ChatGPT and Claude to help generate/debug the following when creating the App.PY page:
+#   - Overall page skeleton and format structure
+#   - Navigation Bar
+#
+# Team member reviewed, tested, and made edits/revisions to all code before including it in the app.
+########################################################################################################
+
+
+
 import dash
 from dash import html, dcc
 

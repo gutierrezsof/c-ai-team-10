@@ -1,221 +1,413 @@
-"""
-pages/page2.py — Explore Career + Location (Sofia)
+######################################## AI USE DISCLOSURE ##############################################
 
-Answers: "What does this career look like, and where are the best opportunities?"
-Career dropdown -> KPI profile and a U.S. choropleth that toggles between
-median wage and employment, with state abbreviations labeled on the map.
+# AI Model Used: ChatGPT
+#
+# Used ChatGPT to help generate/debug the following when creating the Career Match page:
+#   - Overall page skeleton and layout structure
+#   - Occupation group dropdown and filtering logic
+#   - Salary, growth, and job opportunity sliders
+#   - Weighted opportunity score calculation
+#   - Top 10 career ranking chart and summary
+#   - Organization, and debugging
+#
+# Team member reviewed, tested, and made edits/revisions to all code before including it in the app.
+########################################################################################################
 
-Data: national_careers.csv (one row per occupation), state_careers.csv (one row
-per occupation per state, OEWS). BLS suppresses low-reliability estimates, so
-missing values are flagged and left blank rather than filled in.
 
-AI assistance: Used Claude to scaffold the layout/callback structure and the
-missing-data handling for the choropleth, then condensed it. Reviewed and
-adjusted the color scale, hover text, and footnote wording by hand.
-
-CHANGE LOG (this revision):
-  - Removed the "Projected Employment: 2025 vs. 2035" bar chart and its
-    callback. The choropleth is now the only chart on the page and runs
-    full width (charts-two-col -> charts-one-col).
-  - Added state abbreviation labels directly on the choropleth (e.g. "VA"
-    drawn on top of Virginia), via a text-only Scattergeo trace layered
-    over the choropleth. Plotly auto-places these at each state's
-    centroid when locationmode="USA-states" is used, so no external
-    centroid lookup table is needed.
-"""
-
-import os
 import dash
-from dash import dcc, html, callback, Input, Output
+from dash import html, dcc, callback, Input, Output
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
-
-# --- Data ------------------------------------------------------------------
-# The CSVs may live next to this file, in the project root, or in data/.
-_DIRS = [os.path.dirname(os.path.abspath(__file__)),
-         os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-         os.getcwd(), os.path.join(os.getcwd(), "data")]
 
 
-def _read(filename, **strip):
-    for d in _DIRS:
-        path = os.path.join(d, filename)
-        if os.path.exists(path):
-            df = pd.read_csv(path)
-            for col in strip:
-                df[col] = df[col].astype(str).str.strip()
-            return df
-    raise FileNotFoundError(f"Couldn't find {filename}. Looked in: {_DIRS}")
+# ============================================================
+# PAGE SETUP
+# ============================================================
+
+dash.register_page(
+    __name__,
+    path="/ranking",
+    name="Career Match",
+    order=2,
+)
 
 
-national_df = _read("national_careers.csv", national_occ_title=1, occ_code=1)
-state_df = _read("state_careers.csv", occ_code=1, state=1)
+# ============================================================
+# LOAD + CLEAN DATA
+# ============================================================
 
-# Flag suppressed estimates so the UI can say "Not reported" instead of faking 0.
-national_df["wage_reported"] = national_df["national_median_wage"].notna()
-state_df["wage_reported"] = state_df["state_median_wage"].notna()
-state_df["employment_reported"] = state_df["state_employment"].notna()
+df = pd.read_csv(
+    "data/national_careers.csv",
+    dtype={"occ_code": str}
+)
 
-CAREER_OPTIONS = [{"label": t, "value": c} for c, t in
-                  national_df.sort_values("national_occ_title")[
-                      ["occ_code", "national_occ_title"]].drop_duplicates().values]
-# Open on Sammie's worked example from the home page; fall back to the largest
-# occupation if that title isn't in the data so the page never opens empty.
-_sammie_occ = national_df.loc[
-    national_df["national_occ_title"] == "Market research analysts and marketing specialists",
-    "occ_code",
-]
-DEFAULT_OCC = (_sammie_occ.iloc[0] if not _sammie_occ.empty
-               else national_df.nlargest(1, "employment_2025")["occ_code"].iloc[0])
+df["national_occ_title"] = (
+    df["national_occ_title"]
+    .astype(str)
+    .str.strip()
+)
 
-# metric key -> (value column, reported flag, legend label, card title, money?)
-METRICS = {
-    "wage": ("state_median_wage", "wage_reported", "Median Annual Wage",
-             "Median Annual Wage by State", True),
-    "employment": ("state_employment", "employment_reported", "People Employed",
-                   "Number Employed by State", False),
-}
-
-dash.register_page(__name__, path="/explore", name="Explore Career + Location", order=4)
-
-
-# --- Helpers ---------------------------------------------------------------
-def _fmt(val, kind="int"):
-    if val is None or val != val:            # None or NaN
-        return "Not reported"
-    if kind == "money":
-        return f"${val:,.0f}"
-    if kind == "pct":
-        return f"{'▲' if val >= 0 else '▼'} {val:+.1f}%"
-    return f"{val:,.0f}"
-
-
-def _kpi(label, value, note=None, accent=False):
-    return html.Div(
-        [html.Div(label, className="kpi-label"), html.Div(value, className="kpi-value")]
-        + ([html.Div(note, className="kpi-note")] if note else []),
-        className="kpi-card accent-amber" if accent else "kpi-card")
-
-
-def _blank(message):
-    fig = go.Figure()
-    fig.update_layout(annotations=[{"text": message, "showarrow": False,
-                                    "font": {"size": 14, "color": "#6b7280"}}])
-    return fig.update_xaxes(visible=False).update_yaxes(visible=False)
-
-
-def _lookup(occ_code):
-    """Return the national row for occ_code, or None if missing/unselected."""
-    if not occ_code:
-        return None
-    row = national_df.loc[national_df["occ_code"] == occ_code]
-    return None if row.empty else row.iloc[0]
-
-
-def _control(label, component):
-    return html.Div([html.Label(label, className="control-label"), component],
-                    className="control-block")
-
-
-def _chart_card(title, graph, extra=None):
-    return html.Div([html.Div(title, className="chart-card-title"), graph] +
-                    ([extra] if extra is not None else []), className="chart-card")
-
-
-# --- Layout ----------------------------------------------------------------
-def layout():
-    return html.Div(className="page-container", children=[
-        html.Div("Explore Career + Location", className="page-title"),
-        html.Div("Pick a career to see its national profile and where in the "
-                 "U.S. it pays best and employs the most people.",
-                 className="page-subtitle"),
-        html.Div(className="controls-row", children=[
-            _control("Career", dcc.Dropdown(
-                id="p2-career-dropdown", options=CAREER_OPTIONS, value=DEFAULT_OCC,
-                clearable=False, placeholder="Search for a career...")),
-            _control("Map Shows", dcc.RadioItems(
-                id="p2-map-metric",
-                options=[{"label": m[2], "value": k} for k, m in METRICS.items()],
-                value="wage", className="dash-radio-toggle", inline=True)),
-        ]),
-        html.Div(id="p2-error-banner"),
-        html.Div(id="p2-kpi-row", className="kpi-row"),
-        # NOTE: the employment bar chart card that used to sit here (inside a
-        # two-column "charts-two-col" row) has been removed. The choropleth
-        # is now the only chart on the page and runs full width.
-        html.Div(className="charts-one-col", children=[
-            _chart_card(html.Span(id="p2-map-title"),
-                        dcc.Graph(id="p2-choropleth", config={"displayModeBar": False}),
-                        html.Div(id="p2-map-footnote", className="footnote")),
-        ]),
-    ])
-
-
-# --- Callbacks -------------------------------------------------------------
-@callback(Output("p2-error-banner", "children"), Output("p2-kpi-row", "children"),
-          Input("p2-career-dropdown", "value"))
-def update_profile(occ_code):
-    row = _lookup(occ_code)
-    if row is None:
-        msg = "Choose a career from the dropdown to see its profile." if not occ_code \
-            else f"No profile data found for occupation code {occ_code}."
-        return html.Div(msg, className="error-banner"), []
-
-    wage = row["national_median_wage"] if row["wage_reported"] else None
-    return None, [
-        _kpi("Median Annual Wage", _fmt(wage, "money"), "National, 2025"),
-        _kpi("Projected Growth", _fmt(row["growth_pct"], "pct"), "2025 → 2035", accent=True),
-        _kpi("Annual Openings", _fmt(row["annual_openings"]), "Per year, avg."),
-        _kpi("Employed (2025)", _fmt(row["employment_2025"]), "Nationwide"),
-        _kpi("Typical Education", row["education"], row["occupation_group"]),
+df = df.dropna(
+    subset=[
+        "national_occ_title",
+        "occupation_group",
+        "salary_score",
+        "growth_score",
+        "openings_score",
+        "national_median_wage",
+        "growth_pct",
+        "annual_openings"
     ]
+).copy()
 
 
-# NOTE: update_employment_chart() and the "p2-employment-chart" Graph have
-# been removed along with the bar chart itself. If you ever want the 2025
-# vs. 2035 comparison back, the KPI row still surfaces "Employed (2025)",
-# and national_df has employment_2035 available to re-add it later.
+# ============================================================
+# DROPDOWN OPTIONS
+# ============================================================
+
+group_options = [
+    {"label": "All Occupations", "value": "ALL"},
+    *[
+        {"label": group, "value": group}
+        for group in sorted(df["occupation_group"].unique())
+    ]
+]
 
 
-@callback(Output("p2-choropleth", "figure"), Output("p2-map-title", "children"),
-          Output("p2-map-footnote", "children"),
-          Input("p2-career-dropdown", "value"), Input("p2-map-metric", "value"))
-def update_choropleth(occ_code, metric):
-    col, flag, label, title, is_money = METRICS[metric]
-    states = state_df.loc[state_df["occ_code"] == occ_code].copy() if occ_code else state_df.iloc[:0]
-    if states.empty:
-        msg = "Select a career to see where it's strongest." if not occ_code \
-            else "No state-level data available for this career."
-        return _blank(msg), title, ""
+# ============================================================
+# PAGE LAYOUT
+# ============================================================
 
-    states["hover_value"] = states[col].map(lambda v: _fmt(v, "money" if is_money else "int"))
+layout = html.Div(
+    className="page-container",
+    children=[
 
-    fig = px.choropleth(
-        states, locations="state", locationmode="USA-states", color=col, scope="usa",
-        color_continuous_scale="Viridis",  # colorblind-safe, perceptually uniform
-        hover_name="state_name", custom_data=["hover_value"])
-    fig.update_traces(hovertemplate=f"<b>%{{hovertext}}</b><br>{label}: %{{customdata[0]}}<extra></extra>")
+        html.H1("Career Opportunity Ranking", className="page-title"),
+        html.P(
+            "Which careers offer the best combination of salary, projected "
+            "growth, and employment opportunities based on what matters most "
+            "to you?",
+            className="page-subtitle",
+        ),
 
-    # NEW: overlay state abbreviations (e.g. "VA") directly on the map.
-    # A text-only Scattergeo trace sharing the same locationmode lets Plotly
-    # auto-place each label at its state's centroid — no separate lookup
-    # table of lat/lon centroids is needed. hoverinfo is turned off here so
-    # hovering still shows the choropleth's tooltip, not this label trace.
-    fig.add_trace(go.Scattergeo(
-        locations=states["state"],
-        locationmode="USA-states",
-        text=states["state"],
-        mode="text",
-        textfont=dict(size=9, color="#1f2937"),
-        hoverinfo="skip",
-        showlegend=False,
-    ))
+        # --- Occupation group filter ------------------------------------------
+        html.Div(
+            className="controls-row",
+            children=[
+                html.Div(
+                    className="dropdown-group",
+                    children=[
+                        html.Label("Occupation Group", className="control-label"),
+                        dcc.Dropdown(
+                            id="occupation-group-dropdown",
+                            options=group_options,
+                            value="Computer and Mathematical",  # Sammie's field
+                            clearable=False,
+                            className="dropdown",
+                        ),
+                    ],
+                ),
+            ],
+        ),
 
-    fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), coloraxis_colorbar_title=None,
-                      height=340, geo=dict(bgcolor="rgba(0,0,0,0)", lakecolor="white"))
 
-    n_missing = int((~states[flag]).sum())
-    footnote = (f"{n_missing} state(s) have no reliable estimate for this career and are "
-                "shown blank (BLS suppresses low-count data).") if n_missing else ""
-    return fig, title, footnote
+        # --- Priority sliders -----------------------------------------------
+        # Defaults reflect Sammie: stability first, so job openings and growth
+        # outweigh salary.
+        html.Div(
+            className="chart-card",
+            style={"display": "flex", "flexDirection": "column",
+                   "gap": "26px", "padding": "22px 18px 18px"},
+            children=[
+                html.Div(className="dropdown-group", children=[
+                    html.Label("Salary Importance", className="control-label"),
+                    dcc.Slider(
+                        id="salary-weight", min=0, max=100, step=5, value=15,
+                        marks={0: "0", 25: "25", 50: "50", 75: "75", 100: "100"},
+                        tooltip={"placement": "bottom", "always_visible": True},
+                    ),
+                ]),
+                html.Div(className="dropdown-group", children=[
+                    html.Label("Growth Importance", className="control-label"),
+                    dcc.Slider(
+                        id="growth-weight", min=0, max=100, step=5, value=35,
+                        marks={0: "0", 25: "25", 50: "50", 75: "75", 100: "100"},
+                        tooltip={"placement": "bottom", "always_visible": True},
+                    ),
+                ]),
+                html.Div(className="dropdown-group", children=[
+                    html.Label("Job Opportunities Importance", className="control-label"),
+                    dcc.Slider(
+                        id="openings-weight", min=0, max=100, step=5, value=50,
+                        marks={0: "0", 25: "25", 50: "50", 75: "75", 100: "100"},
+                        tooltip={"placement": "bottom", "always_visible": True},
+                    ),
+                ]),
+            ],
+        ),
+
+
+        html.Div(
+            id="normalized-weight-display",
+            style={"textAlign": "center", "fontWeight": "600",
+                   "color": "var(--text-soft)", "margin": "6px 0 22px"},
+        ),
+
+        # --- Results: ranking chart + your top career ------------------------
+        html.Div(
+            style={"display": "flex", "gap": "22px", "alignItems": "stretch",
+                   "flexWrap": "wrap"},
+            children=[
+                html.Div(
+                    className="chart-card",
+                    style={"flex": "2", "minWidth": "520px"},
+                    children=[
+                        dcc.Graph(id="career-ranking-chart",
+                                  config={"displayModeBar": False}),
+                    ],
+                ),
+                html.Div(
+                    className="chart-card",
+                    style={"flex": "1", "minWidth": "280px"},
+                    children=[
+                        html.H2("Your Top Career", style={"marginTop": "0"}),
+                        html.Div(id="top-career-explanation"),
+                    ],
+                ),
+            ],
+        ),
+
+    ],
+)
+
+
+# ============================================================
+# CALLBACK
+# ============================================================
+
+@callback(
+    Output("career-ranking-chart", "figure"),
+    Output("normalized-weight-display", "children"),
+    Output("top-career-explanation", "children"),
+
+    Input("occupation-group-dropdown", "value"),
+    Input("salary-weight", "value"),
+    Input("growth-weight", "value"),
+    Input("openings-weight", "value")
+)
+def update_ranking(
+    selected_group,
+    salary_weight,
+    growth_weight,
+    openings_weight
+):
+
+    # --------------------------------------------------------
+    # NORMALIZE USER WEIGHTS
+    # --------------------------------------------------------
+
+    total = salary_weight + growth_weight + openings_weight
+
+    if total == 0:
+        salary_n = growth_n = openings_n = 1 / 3
+    else:
+        salary_n = salary_weight / total
+        growth_n = growth_weight / total
+        openings_n = openings_weight / total
+
+
+    # --------------------------------------------------------
+    # FILTER BY OCCUPATION GROUP
+    # --------------------------------------------------------
+
+    ranking = df.copy()
+
+    if selected_group != "ALL":
+        ranking = ranking[
+            ranking["occupation_group"] == selected_group
+        ].copy()
+
+
+    # --------------------------------------------------------
+    # CALCULATE OPPORTUNITY SCORE
+    # --------------------------------------------------------
+
+    ranking["opportunity_score"] = (
+        ranking["salary_score"] * salary_n
+        + ranking["growth_score"] * growth_n
+        + ranking["openings_score"] * openings_n
+    )
+
+
+    # --------------------------------------------------------
+    # TOP 10 CAREERS
+    # --------------------------------------------------------
+
+    top10 = (
+        ranking
+        .nlargest(10, "opportunity_score")
+        .sort_values("opportunity_score")
+        .copy()
+    )
+
+    top10["score_label"] = (
+        top10["opportunity_score"]
+        .map(lambda x: f"{x:.1f}")
+    )
+
+
+    # --------------------------------------------------------
+    # CREATE GRAPH
+    # --------------------------------------------------------
+
+    fig = px.bar(
+        top10,
+        x="opportunity_score",
+        y="national_occ_title",
+        orientation="h",
+        text="score_label",
+        title="Top 10 Career Opportunities",
+
+        labels={
+            "opportunity_score": "Career Opportunity Score",
+            "national_occ_title": ""
+        },
+
+        hover_data={
+            "national_median_wage": ":$,.0f",
+            "growth_pct": ":.1f",
+            "annual_openings": ":,.0f",
+            "salary_score": ":.1f",
+            "growth_score": ":.1f",
+            "openings_score": ":.1f",
+            "score_label": False
+        }
+    )
+
+    fig.update_traces(
+        textposition="outside"
+    )
+
+    fig.update_layout(
+        template="plotly_white",
+        height=520,
+
+        title={
+            "x": 0.5,
+            "xanchor": "center"
+        },
+
+        xaxis={
+            "title": "Career Opportunity Score",
+            "range": [0, 105]
+        },
+
+        yaxis_title="",
+
+        margin={
+            "l": 190,
+            "r": 40,
+            "t": 70,
+            "b": 50
+        }
+    )
+
+
+    # --------------------------------------------------------
+    # NORMALIZED WEIGHT TEXT
+    # --------------------------------------------------------
+
+    salary_pct = salary_n * 100
+    growth_pct = growth_n * 100
+    openings_pct = openings_n * 100
+
+    weight_text = (
+        f"Normalized Weights: "
+        f"Salary {salary_pct:.0f}% | "
+        f"Growth {growth_pct:.0f}% | "
+        f"Job Opportunities {openings_pct:.0f}%"
+    )
+
+
+    # --------------------------------------------------------
+    # FIND #1 CAREER
+    # --------------------------------------------------------
+
+    top = ranking.nlargest(
+        1,
+        "opportunity_score"
+    ).iloc[0]
+
+    career = top["national_occ_title"]
+    score = top["opportunity_score"]
+    wage = top["national_median_wage"]
+    growth = top["growth_pct"]
+    openings = top["annual_openings"]
+
+
+    # --------------------------------------------------------
+    # BUILD #1 CAREER CARD
+    # --------------------------------------------------------
+
+    explanation = html.Div(
+        [
+
+            html.H3(
+                career,
+                style={
+                    "marginBottom": "5px"
+                }
+            ),
+
+            html.P(
+                f"Opportunity Score: {score:.1f}",
+                style={
+                    "fontWeight": "bold",
+                    "fontSize": "18px"
+                }
+            ),
+
+            html.Hr(),
+
+            html.P([
+                html.Strong("Median Salary"),
+                html.Br(),
+                f"${wage:,.0f}"
+            ]),
+
+            html.P([
+                html.Strong("Projected Growth"),
+                html.Br(),
+                f"{growth:.1f}%"
+            ]),
+
+            html.P([
+                html.Strong("Annual Openings"),
+                html.Br(),
+                f"{openings:,.0f}"
+            ]),
+
+            html.Hr(),
+
+            html.P([
+                html.Strong("Your Priorities"),
+                html.Br(),
+                f"Salary: {salary_pct:.0f}%",
+                html.Br(),
+                f"Growth: {growth_pct:.0f}%",
+                html.Br(),
+                f"Job Opportunities: {openings_pct:.0f}%"
+            ])
+
+        ],
+        style={
+            "fontSize": "17px",
+            "lineHeight": "1.6"
+        }
+    )
+
+    return (
+        fig,
+        weight_text,
+        explanation
+    )
