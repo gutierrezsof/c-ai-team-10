@@ -2,62 +2,45 @@
 =====================================================================
 PAGE 3 — "Compare Careers"
 =====================================================================
+Question;
+What are my top matches for my dream career?
+
 Objective:
     Let the user pick 2-5 careers and directly compare them on:
       1. Median annual wage (grouped bar chart) — REQUIRED
       2. Projected employment growth % (bar chart) — OPTIONAL toggle
+Data: national_careers.csv (one row per occupation)
 
-    An "Select Occupation Group" dropdown filters which careers are
+Page setup
+    A "Select Occupation Group" dropdown filters which careers are
     available in the compare dropdown, matching the pattern used on
-    Page 2 ("Career Opportunity Explorer"). It defaults to
-    "All Occupations" so the page can open on Sammie's worked example
-    from the home page (market research analyst, data scientist, HR
-    specialist), which spans more than one occupation group.
+    "Career Opportunity Explorer" page. On landing, by default our app selects
+    "Computer and Mathematical, can be switched to other occupational groups
+    still allowing the user to switch back to ""Computer and Mathematical".
 
-Data source decision
----------------------
-Two files were provided: national_careers.csv and state_careers.csv.
-
-    national_careers.csv -> one row PER OCCUPATION (831 unique titles).
-        Columns include: national_occ_title, occ_code, employment_2025,
-        employment_2035, growth_pct, national_median_wage, education,
-        occupation_group, etc.
-        -> This already has everything Page 3 needs: wage + growth,
-           at the national level, one row per career. No merge needed.
-
-    state_careers.csv -> one row PER STATE PER OCCUPATION (35,224 rows:
-        occ_code + state). This is for a *state-level* comparison page
-        (e.g. "compare my state to the nation"), not for this page.
-
-Decision: Page 3 uses ONLY national_careers.csv. No merge is required
-because a single row per occupation already contains both the wage
-metric and the growth metric this page needs to visualize.
+AI assistance: Used Claude to implement code changes per the rules and design
+of our page layout - Reviewed and helped with set  up of default selecton,
+toggling between filter selection groups.
 =====================================================================
 """
 
+#import packages 
 import dash
 from dash import html, dcc, callback, Input, Output
 import plotly.graph_objects as go
 import pandas as pd
 
 
-# ---------------------------------------------------------------
-# STEP 1 — Register this file as a page in the multipage app
-# ---------------------------------------------------------------
+#registering  compare careers page for the multipage 
 dash.register_page(
     __name__,
     path="/compare-careers",
     name="Compare Careers",
-    title="Compare Careers",
-    order=3,
+    title="Compare Careers"
 )
 
-
-# ---------------------------------------------------------------
-# STEP 2 — Load & lightly clean the data (runs once at import time)
-# ---------------------------------------------------------------
+#loading the national_careers dataset
 DATA_PATH = "data/national_careers.csv"  # adjust path if your app.py lives elsewhere
-
 
 def load_career_data(path: str = DATA_PATH) -> pd.DataFrame:
     df = pd.read_csv(path)
@@ -71,7 +54,7 @@ def load_career_data(path: str = DATA_PATH) -> pd.DataFrame:
     # Drop rows with no wage data (a handful of suppressed BLS values)
     df = df.dropna(subset=["national_median_wage"])
 
-    # Keep only the columns this page actually uses
+    # Keep relevant columns 
     cols = [
         "national_occ_title", "occ_code", "occupation_group",
         "national_median_wage", "growth_pct",
@@ -96,11 +79,8 @@ OCCUPATION_GROUP_OPTIONS = [{"label": "All Occupations", "value": "All"}] + [
     for group in sorted(careers_df["occupation_group"].unique())
 ]
 
-# Default occupation group shown on first page load. Kept at "All" so the
-# page can open on Sammie's cross-group example (see DEFAULT_CAREERS below).
-# Any other value here must match a string in careers_df["occupation_group"]
-# EXACTLY (case + spacing).
-DEFAULT_OCCUPATION_GROUP = "All"
+# Set page Default occupation.
+DEFAULT_OCCUPATION_GROUP = "Computer and Mathematical"
 
 # Fall back to "All" if the requested default isn't actually present in
 # the data, so the page never loads with an invalid/blank selection.
@@ -108,22 +88,18 @@ _group_values = {opt["value"] for opt in OCCUPATION_GROUP_OPTIONS}
 if DEFAULT_OCCUPATION_GROUP not in _group_values:
     DEFAULT_OCCUPATION_GROUP = "All"
 
-# Open on Sammie's short list from the home page ("market research analyst,
-# data analyst, and HR specialist"). Any title missing from the data is
-# dropped; if fewer than two survive, fall back to the first few careers.
+# Selection of 4 default career types under the default occupational groups.
 DEFAULT_CAREERS = [
     c for c in [
-        "Market research analysts and marketing specialists",
         "Data scientists",
-        "Human resources specialists",
+        "Software developers",
+        "Financial and investment analysts",
+        "Operations research analysts",
     ]
     if c in careers_df["national_occ_title"].values
 ][:5] or [opt["value"] for opt in CAREER_OPTIONS[:3]]
 
-
-# ---------------------------------------------------------------
-# STEP 3 — Layout: occupation group filter + multiselect + toggle + charts
-# ---------------------------------------------------------------
+#Layout: occupation group filter + multiselect + toggle + charts
 layout = html.Div(
     className="page-container",
     children=[
@@ -135,7 +111,7 @@ layout = html.Div(
             className="page-subtitle",
         ),
 
-        # --- Control: occupation group filter (narrows career dropdown) --
+        # Control: occupation group filter (narrows career dropdown) --
         html.Div(
             className="controls-row",
             children=[
@@ -150,7 +126,7 @@ layout = html.Div(
             ],
         ),
 
-        # --- Control: multiselect dropdown -----------------------------
+        # Control: multiselect dropdown 
         html.Div(
             className="controls-row",
             children=[
@@ -163,9 +139,8 @@ layout = html.Div(
                     placeholder="Start typing a career title...",
                     className="dropdown",
                 ),
-                # NOTE: styles.css has no dedicated warning/error class yet.
-                # Using a small inline style here as a placeholder — swap in
-                # a real class (e.g. ".warning-text") if/when you add one.
+
+                #inline style for warning.
                 html.Div(
                     id="career-selection-warning",
                     style={"color": "#d62728", "fontSize": "13px", "marginTop": "6px"},
@@ -173,7 +148,7 @@ layout = html.Div(
             ],
         ),
 
-        # --- Control: which metrics to show -----------------------------
+        #Control: which metrics to show 
         html.Div(
             className="controls-row",
             children=[
@@ -190,20 +165,20 @@ layout = html.Div(
             ],
         ),
 
-        # --- Required visualization: grouped bar chart, median wage -----
+        # visualization: grouped bar chart, median wage
         html.Div(
             className="chart-card",
             children=[dcc.Graph(id="wage-comparison-chart")],
         ),
 
-        # --- Optional visualization: employment growth -------------------
+        # Optional visualization: employment growth in pct 
         html.Div(
             id="growth-chart-card",
             className="chart-card",
             children=[dcc.Graph(id="growth-comparison-chart")],
         ),
 
-        # --- Source note, matching page 1's citation style ---------------
+        # Source note, matching page 1's citation style
         html.Div(
             [
                 "Source: U.S. Bureau of Labor Statistics, Occupational Employment "
@@ -215,14 +190,12 @@ layout = html.Div(
 )
 
 
-# ---------------------------------------------------------------
-# STEP 4 — Callback: occupation group filter updates the career dropdown
-# ---------------------------------------------------------------
+# Callback: occupation group filter updates the career dropdown
+
 @callback(
     Output("career-compare-dropdown", "options"),
     Output("career-compare-dropdown", "value"),
     Input("occupation-group-filter", "value"),
-    prevent_initial_call=True,   # keep DEFAULT_CAREERS (Sammie's picks) on first load
 )
 def filter_career_options(selected_group):
     if not selected_group or selected_group == "All":
@@ -247,9 +220,7 @@ def filter_career_options(selected_group):
     return options, new_value
 
 
-# ---------------------------------------------------------------
-# STEP 5 — Callback: validate selection + build the chart(s)
-# ---------------------------------------------------------------
+#Callback: validate selection + build the chart(s)
 @callback(
     Output("wage-comparison-chart", "figure"),
     Output("growth-comparison-chart", "figure"),
@@ -258,10 +229,11 @@ def filter_career_options(selected_group):
     Input("career-compare-dropdown", "value"),
     Input("metric-toggle", "value"),
 )
+#define warnings for compariing charts 
 def update_comparison_charts(selected_careers, metric_toggle):
     selected_careers = selected_careers or []
 
-    # ---- Enforce the 2-5 career rule --------------------------------
+    #Enforce the 2-5 career rule 
     warning = ""
     if len(selected_careers) < 2:
         warning = "Please select at least 2 careers to compare."
@@ -282,15 +254,16 @@ def update_comparison_charts(selected_careers, metric_toggle):
         )
         return empty_fig, empty_fig, {"display": "none"}, warning
 
-    # ---- Filter the dataframe to just the selected careers -----------
+    # Filter the dataframe to just the selected careers 
     filtered = careers_df[careers_df["national_occ_title"].isin(selected_careers)].copy()
+
     # Preserve the order the user picked them in, for a stable bar order
     filtered["national_occ_title"] = pd.Categorical(
         filtered["national_occ_title"], categories=selected_careers, ordered=True
     )
     filtered = filtered.sort_values("national_occ_title")
 
-    # ---- REQUIRED: grouped bar chart — Median Annual Wage -------------
+    # building the grouped bar chart for Median Annual Wage
     wage_fig = go.Figure(
         data=[
             go.Bar(
@@ -312,7 +285,7 @@ def update_comparison_charts(selected_careers, metric_toggle):
         margin=dict(t=60, b=40),
     )
 
-    # ---- OPTIONAL: bar chart — Projected Employment Growth (%) --------
+    # Toggled bar chart for  Projected Employment Growth (%)
     show_growth = "growth" in (metric_toggle or [])
     growth_fig = go.Figure()
     growth_style = {"display": "none"}
