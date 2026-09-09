@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 320" role="img" aria-label="Sammie, a college student with a backpack, waving">
+  <style>
+    .sw { transform-origin: 124px 120px; animation: sw-wave 2.6s ease-in-out infinite; }
+    @keyframes sw-wave {
+      0%, 58%, 100% { transform: rotate(0deg); }
+      16%, 40%      { transform: rotate(-18deg); }
+      28%           { transform: rotate(-8deg); }
+    }
+    @media (prefers-reduced-motion: reduce) { .sw { animation: none; } }
+  </style>
+
+  <ellipse cx="100" cy="309" rx="44" ry="8" fill="#0f172a" opacity="0.10"/>
+
+  <!-- backpack peeking behind the torso -->
+  <rect x="58" y="118" width="20" height="86" rx="10" fill="#2457c5"/>
+  <rect x="122" y="118" width="20" height="86" rx="10" fill="#2457c5"/>
+
+  <!-- legs -->
+  <rect x="83" y="196" width="15" height="94" rx="7.5" fill="#41639a"/>
+  <rect x="102" y="196" width="15" height="94" rx="7.5" fill="#4a72ad"/>
+
+  <!-- sneakers -->
+  <path d="M75 288 h23 v10 q0 8 -8 8 h-21 q-6 0 -4 -9 Z" fill="#f4f6f8"/>
+  <path d="M102 288 h23 q3 8 1 18 h-24 q-8 0 -8 -8 v-10 Z" fill="#f4f6f8"/>
+  <rect x="65" y="301" width="34" height="6" rx="3" fill="#2f6fed"/>
+  <rect x="101" y="301" width="34" height="6" rx="3" fill="#2f6fed"/>
+
+  <!-- hoodie -->
+  <path d="M76 116 q24 -12 48 0 q10 24 8 60 q-2 20 -8 32 q-24 10 -48 0 q-6 -12 -8 -32 q-2 -36 8 -60 Z" fill="#e8871e"/>
+  <path d="M100 110 q14 3 19 10 q-9 4 -19 4 q-10 0 -19 -4 q5 -7 19 -10 Z" fill="#f2a24b"/>
+  <path d="M84 172 h32 l-4 19 q-12 5 -24 0 Z" fill="#cf6f12" opacity="0.5"/>
+
+  <!-- backpack straps -->
+  <path d="M89 108 l-6 84" stroke="#2457c5" stroke-width="8" stroke-linecap="round"/>
+  <path d="M111 108 l6 84" stroke="#2457c5" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- left arm, resting -->
+  <path d="M78 122 q-14 20 -13 46" fill="none" stroke="#e8871e" stroke-width="13" stroke-linecap="round"/>
+  <circle cx="65" cy="171" r="7.5" fill="#e8b088"/>
+
+  <!-- right arm, waving -->
+  <g class="sw">
+    <path d="M122 122 q24 -6 32 -32" fill="none" stroke="#e8871e" stroke-width="13" stroke-linecap="round"/>
+    <circle cx="156" cy="84" r="8.5" fill="#e8b088"/>
+  </g>
+
+  <!-- neck -->
+  <rect x="92" y="96" width="16" height="18" rx="7" fill="#d99a72"/>
+
+  <!-- hair (back) -->
+  <path d="M64 68 q-2 -46 36 -48 q38 2 36 48 q0 25 -6 41 q-9 -6 -11 -25 q-19 8 -38 0 q-2 19 -11 25 q-6 -16 -6 -41 Z" fill="#5b3d28"/>
+  <!-- head -->
+  <circle cx="100" cy="61" r="29" fill="#e8b088"/>
+  <!-- bangs -->
+  <path d="M71 57 q3 -33 29 -35 q26 2 29 35 q-9 -13 -19 -11 q-4 7 -10 7 q-6 0 -10 -7 q-10 -2 -19 11 Z" fill="#6b4a2f"/>
+  <!-- face -->
+  <circle cx="91" cy="61" r="3" fill="#3b2a1c"/>
+  <circle cx="109" cy="61" r="3" fill="#3b2a1c"/>
+  <path d="M93 72 q7 6 14 0" stroke="#3b2a1c" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <circle cx="83" cy="69" r="3.5" fill="#eb9f9f" opacity="0.45"/>
+  <circle cx="117" cy="69" r="3.5" fill="#eb9f9f" opacity="0.45"/>
+</svg>
