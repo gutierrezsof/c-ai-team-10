@@ -1,3 +1,19 @@
+######################################## AI USE DISCLOSURE ##############################################
+
+# AI Model Used: ChatGPT
+#
+# Used ChatGPT to help generate/debug the following when creating the Career Match page:
+#   - Overall page skeleton and layout structure
+#   - Occupation group dropdown and filtering logic
+#   - Salary, growth, and job opportunity sliders
+#   - Weighted opportunity score calculation
+#   - Top 10 career ranking chart and summary
+#   - Code comments, organization, and debugging
+#
+# Team member reviewed, tested, and made edits/revisions to all code before including it in the app.
+########################################################################################################
+
+
 import dash
 from dash import html, dcc, callback, Input, Output
 import pandas as pd
@@ -137,7 +153,7 @@ layout = html.Div(
                    "color": "var(--text-soft)", "margin": "6px 0 22px"},
         ),
 
-        # --- Results: ranking chart + your #1 career ------------------------
+        # --- Results: ranking chart + your top career ------------------------
         html.Div(
             style={"display": "flex", "gap": "22px", "alignItems": "stretch",
                    "flexWrap": "wrap"},
@@ -154,7 +170,7 @@ layout = html.Div(
                     className="chart-card",
                     style={"flex": "1", "minWidth": "280px"},
                     children=[
-                        html.H2("Your #1 Career", style={"marginTop": "0"}),
+                        html.H2("Your Top Career", style={"marginTop": "0"}),
                         html.Div(id="top-career-explanation"),
                     ],
                 ),
