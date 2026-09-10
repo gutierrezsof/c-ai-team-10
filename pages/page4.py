@@ -112,12 +112,8 @@ CAREER_OPTIONS = [
 ]
 
 
-# Default to the largest occupation so the page does not open empty.
-DEFAULT_OCC = (
-    national_df
-    .nlargest(1, "employment_2025")["occ_code"]
-    .iloc[0]
-)
+# Default to Sammie's career choice of market analyst
+DEFAULT_OCC = "13-1161"
 
 
 # ---------------------------------------------------------------------
