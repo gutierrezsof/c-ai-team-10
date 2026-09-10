@@ -112,8 +112,8 @@ CAREER_OPTIONS = [
 ]
 
 
-# Default to Sammie's career choice of market analyst
-DEFAULT_OCC = "13-1161"
+# Default to Data Scientists
+DEFAULT_OCC = "15-2051"
 
 
 # ---------------------------------------------------------------------
